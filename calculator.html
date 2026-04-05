@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Prince Calc | Smart Calculator with History</title>
+  <!-- Tailwind CSS + Font Awesome + Google Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <!-- Custom Tailwind config override (dark mode) -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            'sans': ['Inter', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'float': 'float 6s ease-in-out infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-8px)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom glassmorphism and glow effects */
+    .glass-panel {
+      background: rgba(15, 25, 35, 0.65);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.5);
+    }
+    .dark .glass-panel {
+      background: rgba(10, 15, 25, 0.8);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+    .calc-btn {
+      transition: all 0.2s ease;
+      transform: scale(1);
+    }
+    .calc-btn:active {
+      transform: scale(0.96);
+    }
+    /* Custom scrollbar for history */
+    .history-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .history-scroll::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+    }
+    .history-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.3);
+      border-radius: 8px;
+    }
+    .dark .history-scroll::-webkit-scrollbar-thumb {
+      background: rgba(100,150,255,0.5);
+    }
+    input:focus {
+      outline: none;
+    }
+    /* scientific key styling */
+    .sci-btn {
+      background: rgba(100, 120, 200, 0.2);
+      font-weight: 500;
+    }
+    .dark .sci-btn {
+      background: rgba(80, 100, 180, 0.25);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-800 via-indigo-900 to-purple-900 dark:from-gray-950 dark:via-gray-900 dark:to-slate-900 min-h-screen flex items-center justify-center p-4 transition-all duration-300 font-sans">
+
+  <!-- Main container with floating orb effect -->
+  <div class="relative w-full max-w-5xl mx-auto">
+    <!-- Animated background decoration -->
+    <div class="absolute top-10 -left-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse-slow"></div>
+    <div class="absolute bottom-10 -right-20 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse-slow" style="animation-delay: 2s;"></div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
+      
+      <!-- ========== MAIN CALCULATOR PANEL ========== -->
+      <div class="lg:col-span-2 glass-panel rounded-3xl p-5 shadow-2xl backdrop-blur-md transition-all duration-300">
+        <!-- Header with title & dark mode toggle -->
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-white/20">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-calculator text-indigo-300 text-2xl"></i>
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-white to-indigo-200 bg-clip-text text-transparent">Prince<span class="text-indigo-300">Calc</span></h1>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white/80 ml-2">Sci-Fi</span>
+          </div>
+          <button id="darkModeToggle" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all">
+            <i id="darkIcon" class="fas fa-moon text-indigo-200"></i>
+          </button>
+        </div>
+        
+        <!-- Display screen -->
+        <div class="mb-6">
+          <div class="bg-black/40 rounded-2xl p-4 backdrop-blur-sm border border-white/20 shadow-inner">
+            <div class="text-right text-white/50 text-sm uppercase tracking-wider">expression</div>
+            <input type="text" id="expressionInput" readonly class="w-full bg-transparent text-right text-3xl font-semibold text-white tracking-wide py-2 overflow-x-auto" value="0">
+            <div class="text-right text-indigo-200 text-4xl font-bold mt-1 break-all min-h-[3rem]" id="resultDisplay">0</div>
+          </div>
+        </div>
+        
+        <!-- Button Grid (Scientific + Basic) -->
+        <div class="grid grid-cols-5 gap-2 sm:gap-3">
+          <!-- Row 1: Scientific functions -->
+          <button data-action="sqrt" class="calc-btn sci-btn text-white py-3 rounded-xl font-semibold text-sm sm:text-base backdrop-blur-sm hover:bg-white/20"><i class="fas fa-square-root-alt mr-1"></i> √</button>
+          <button data-action="power" class="calc-btn sci-btn text-white py-3 rounded-xl font-semibold text-sm sm:text-base backdrop-blur-sm hover:bg-white/20">xʸ</button>
+          <button data-action="percent" class="calc-btn sci-btn text-white py-3 rounded-xl font-semibold text-sm sm:text-base backdrop-blur-sm hover:bg-white/20">%</button>
+          <button data-action="clear" class="calc-btn bg-red-500/70 hover:bg-red-600 text-white py-3 rounded-xl font-bold">C</button>
+          <button data-action="delete" class="calc-btn bg-orange-500/70 hover:bg-orange-600 text-white py-3 rounded-xl font-bold"><i class="fas fa-backspace"></i></button>
+          
+          <!-- Row 2 -->
+          <button data-value="7" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium">7</button>
+          <button data-value="8" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium">8</button>
+          <button data-value="9" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium">9</button>
+          <button data-value="/" class="calc-btn bg-indigo-500/40 hover:bg-indigo-600 text-white py-3 rounded-xl text-xl font-bold">÷</button>
+          <button data-value="(" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-lg font-mono">(</button>
+          
+          <!-- Row 3 -->
+          <button data-value="4" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium">4</button>
+          <button data-value="5" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium">5</button>
+          <button data-value="6" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium">6</button>
+          <button data-value="*" class="calc-btn bg-indigo-500/40 hover:bg-indigo-600 text-white py-3 rounded-xl text-xl font-bold">×</button>
+          <button data-value=")" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-lg font-mono">)</button>
+          
+          <!-- Row 4 -->
+          <button data-value="1" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium">1</button>
+          <button data-value="2" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium">2</button>
+          <button data-value="3" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium">3</button>
+          <button data-value="-" class="calc-btn bg-indigo-500/40 hover:bg-indigo-600 text-white py-3 rounded-xl text-xl font-bold">-</button>
+          <button data-value="^" class="calc-btn sci-btn text-white py-3 rounded-xl font-semibold text-base hidden sm:block">^</button>
+          
+          <!-- Row 5 -->
+          <button data-value="0" class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-medium col-span-2">0</button>
+          <button data-value="." class="calc-btn bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-xl font-bold">.</button>
+          <button data-value="+" class="calc-btn bg-indigo-500/40 hover:bg-indigo-600 text-white py-3 rounded-xl text-xl font-bold">+</button>
+          <button data-action="equals" class="calc-btn bg-emerald-500/80 hover:bg-emerald-600 text-white py-3 rounded-xl text-xl font-bold shadow-lg">=</button>
+        </div>
+        
+        <!-- Info text: keyboard support -->
+        <div class="text-xs text-center text-white/40 mt-5 flex justify-center gap-3">
+          <span><i class="far fa-keyboard"></i> Keyboard support</span>
+          <span><i class="fas fa-history"></i> History saved locally</span>
+        </div>
+      </div>
+      
+      <!-- ========== HISTORY PANEL with MongoDB-like (localStorage) ========== -->
+      <div class="glass-panel rounded-3xl p-5 shadow-2xl backdrop-blur-md flex flex-col h-[500px] lg:h-auto">
+        <div class="flex items-center justify-between mb-4 pb-2 border-b border-white/20">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-database text-indigo-300"></i>
+            <h2 class="text-white font-semibold text-lg">History</h2>
+            <span class="text-[10px] bg-indigo-500/50 px-1.5 py-0.5 rounded-full text-white">MongoDB style</span>
+          </div>
+          <button id="clearHistoryBtn" class="text-white/50 hover:text-white/90 transition text-sm"><i class="fas fa-trash-alt"></i></button>
+        </div>
+        
+        <div id="historyList" class="flex-1 overflow-y-auto space-y-2 pr-1 history-scroll">
+          <!-- History items will be injected dynamically -->
+          <div class="text-center text-white/40 text-sm py-8 italic">No calculations yet<br>Press = or Enter</div>
+        </div>
+        
+        <div class="mt-3 pt-3 border-t border-white/10 text-[10px] text-white/30 text-center flex justify-between">
+          <span><i class="fas fa-save"></i> Persists in browser</span>
+          <span id="historyCount">0 items</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- DOM Elements ----------
+    const expressionInput = document.getElementById('expressionInput');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const historyListDiv = document.getElementById('historyList');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const darkIcon = document.getElementById('darkIcon');
+    
+    // State
+    let currentExpression = '';    // raw expression string
+    let lastResult = null;
+    
+    // ---------- Helper Functions: Evaluation (safe & supports sqrt, power, %, ^) ----------
+    function evaluateExpression(expr) {
+      // replace display symbols: × -> *, ÷ -> /
+      let processed = expr.replace(/×/g, '*').replace(/÷/g, '/');
+      // handle custom scientific notation: sqrt(...)
+      // replace √(number) or √number with sqrt(number)
+      processed = processed.replace(/√\s*\(?([^\)]+)\)?/g, (match, p1) => {
+        let inner = p1.trim();
+        if (inner.startsWith('(') && inner.endsWith(')')) inner = inner.slice(1, -1);
+        return `Math.sqrt(${inner})`;
+      });
+      // handle power: x^y or xʸ (we used ^ in some buttons) but for xʸ we map to pow(x,y)
+      // also handle custom power using ** operator: replace ^ with **
+      processed = processed.replace(/\^/g, '**');
+      // handle percentage: e.g., 50% -> 0.5 but more logically: 50% of previous? We'll implement as number/100
+      // but we treat standalone %: replace "number%" with number/100 only if followed by operator or end
+      processed = processed.replace(/(\d+(?:\.\d+)?)%/g, (match, num) => {
+        return `(${num}/100)`;
+      });
+      // also handle chained: 20%+10% but regex above works.
+      // Advanced: custom function for power xʸ button -> generates pow(x,y) expression? but we replace existing pow style.
+      // extra safety: handle implicit multiplication with parentheses
+      try {
+        // Use Function constructor for safe arithmetic, but we restrict dangerous calls
+        const evalFunc = new Function('return (' + processed + ')');
+        let result = evalFunc();
+        // Check if result is finite number
+        if (isNaN(result) || !isFinite(result)) throw new Error('Invalid calculation');
+        // Round to 10 decimal places to avoid floating issues
+        return parseFloat(result.toFixed(10));
+      } catch (error) {
+        console.warn('Eval error:', error);
+        return null;
+      }
+    }
+    
+    // Update display: expression and result
+    function updateDisplay() {
+      expressionInput.value = currentExpression === '' ? '0' : currentExpression;
+      if (currentExpression.trim() === '') {
+        resultDisplay.innerText = '0';
+        return;
+      }
+      const evalResult = evaluateExpression(currentExpression);
+      if (evalResult !== null) {
+        resultDisplay.innerText = evalResult.toString();
+      } else {
+        resultDisplay.innerText = 'Error';
+      }
+    }
+    
+    // Compute final result and save to history (if valid)
+    function computeAndSave() {
+      if (!currentExpression || currentExpression.trim() === '') {
+        // if empty, do nothing
+        return false;
+      }
+      const result = evaluateExpression(currentExpression);
+      if (result !== null) {
+        const finalResult = result;
+        // Save to history (expression + result)
+        addHistoryItem(currentExpression, finalResult);
+        // Update expression to result (optional typical calculator behavior)
+        currentExpression = finalResult.toString();
+        updateDisplay();
+        return true;
+      } else {
+        resultDisplay.innerText = 'Syntax Error';
+        setTimeout(() => {
+          if (evaluateExpression(currentExpression) === null) {
+            // if still error, keep error but let user clear
+          }
+          updateDisplay();
+        }, 1500);
+        return false;
+      }
+    }
+    
+    // ---------- History Management (MongoDB style using localStorage) ----------
+    let historyStore = []; // array of { id, expression, result, timestamp }
+    
+    function loadHistoryFromStorage() {
+      const stored = localStorage.getItem('Prince_calc_history');
+      if (stored) {
+        try {
+          historyStore = JSON.parse(stored);
+        } catch(e) { historyStore = []; }
+      } else {
+        historyStore = [];
+      }
+      renderHistoryUI();
+    }
+    
+    function saveHistoryToStorage() {
+      localStorage.setItem('Prince_calc_history', JSON.stringify(historyStore));
+      renderHistoryUI();
+    }
+    
+    function addHistoryItem(expression, result) {
+      const newEntry = {
+        id: Date.now() + '-' + Math.random().toString(36).substr(2, 6),
+        expression: expression,
+        result: result,
+        timestamp: new Date().toLocaleString()
+      };
+      historyStore.unshift(newEntry); // latest first
+      // Keep max 30 entries to avoid clutter
+      if (historyStore.length > 30) historyStore.pop();
+      saveHistoryToStorage();
+    }
+    
+    function deleteHistoryItem(id) {
+      historyStore = historyStore.filter(item => item.id != id);
+      saveHistoryToStorage();
+    }
+    
+    function clearAllHistory() {
+      historyStore = [];
+      saveHistoryToStorage();
+    }
+    
+    function renderHistoryUI() {
+      if (!historyListDiv) return;
+      if (historyStore.length === 0) {
+        historyListDiv.innerHTML = `<div class="text-center text-white/40 text-sm py-8 italic"><i class="fas fa-cloud-moon"></i> No history yet<br>Calculate something ✨</div>`;
+        document.getElementById('historyCount').innerText = '0 items';
+        return;
+      }
+      document.getElementById('historyCount').innerText = `${historyStore.length} item${historyStore.length !== 1 ? 's' : ''}`;
+      const html = historyStore.map(item => `
+        <div class="bg-black/30 rounded-xl p-2 border border-white/10 hover:bg-white/10 transition group relative">
+          <div class="flex justify-between items-start">
+            <div class="flex-1 overflow-hidden">
+              <div class="text-white/70 text-xs truncate font-mono">${escapeHtml(item.expression)}</div>
+              <div class="text-indigo-200 font-bold text-sm">= ${item.result}</div>
+              <div class="text-white/30 text-[10px]">${item.timestamp}</div>
+            </div>
+            <button class="delete-history-item text-white/30 hover:text-red-400 transition ml-2" data-id="${item.id}"><i class="fas fa-times-circle"></i></button>
+          </div>
+        </div>
+      `).join('');
+      historyListDiv.innerHTML = html;
+      // attach delete events
+      document.querySelectorAll('.delete-history-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          if (id) deleteHistoryItem(id);
+        });
+      });
+      // Also make click on history item to load expression
+      document.querySelectorAll('#historyList .bg-black\\/30').forEach((card, idx) => {
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.delete-history-item')) return;
+          const entry = historyStore[idx];
+          if (entry) {
+            currentExpression = entry.expression;
+            updateDisplay();
+          }
+        });
+      });
+    }
+    
+    function escapeHtml(str) {
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      });
+    }
+    
+    // ---------- Button Actions ----------
+    function handleButton(value, action) {
+      if (action === 'clear') {
+        currentExpression = '';
+        updateDisplay();
+      } 
+      else if (action === 'delete') {
+        currentExpression = currentExpression.slice(0, -1);
+        updateDisplay();
+      }
+      else if (action === 'equals') {
+        computeAndSave();
+      }
+      else if (action === 'sqrt') {
+        // add sqrt( current expression or selected)
+        let exprToWrap = currentExpression.trim() === '' ? '0' : currentExpression;
+        currentExpression = `sqrt(${exprToWrap})`;
+        updateDisplay();
+      }
+      else if (action === 'power') {
+        // adds ^ symbol for exponentiation
+        currentExpression += '^';
+        updateDisplay();
+      }
+      else if (action === 'percent') {
+        // append % to the last number (simple)
+        currentExpression += '%';
+        updateDisplay();
+      }
+      else if (value !== undefined) {
+        // normal value input
+        if (currentExpression === '0' && !isNaN(value) && value !== '.') {
+          currentExpression = value;
+        } else {
+          currentExpression += value;
+        }
+        updateDisplay();
+      }
+    }
+    
+    // attach all buttons
+    document.querySelectorAll('.calc-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const value = btn.getAttribute('data-value');
+        const action = btn.getAttribute('data-action');
+        if (value) handleButton(value, null);
+        else if (action) handleButton(null, action);
+        else handleButton(btn.innerText.trim(), null);
+      });
+    });
+    
+    // ---------- Keyboard Input Support ----------
+    document.addEventListener('keydown', (e) => {
+      const key = e.key;
+      // prevent default if needed for some keys
+      const validKeys = /[0-9\+\-\*\/\.\(\)\%\^]/;
+      if (validKeys.test(key)) {
+        e.preventDefault();
+        handleButton(key, null);
+      } else if (key === 'Enter') {
+        e.preventDefault();
+        computeAndSave();
+      } else if (key === 'Backspace') {
+        e.preventDefault();
+        handleButton(null, 'delete');
+      } else if (key === 'Escape' || key === 'c' || key === 'C') {
+        e.preventDefault();
+        handleButton(null, 'clear');
+      } else if (key === 's' || key === 'S') {
+        // sqrt shortcut
+        e.preventDefault();
+        handleButton(null, 'sqrt');
+      }
+    });
+    
+    // ---------- Dark/Light Mode Toggle (with class 'dark') ----------
+    function initTheme() {
+      const isDark = localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        darkIcon.className = 'fas fa-sun text-yellow-300';
+      } else {
+        document.documentElement.classList.remove('dark');
+        darkIcon.className = 'fas fa-moon text-indigo-200';
+      }
+    }
+    
+    darkModeToggle.addEventListener('click', () => {
+      if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+        darkIcon.className = 'fas fa-moon text-indigo-200';
+      } else {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+        darkIcon.className = 'fas fa-sun text-yellow-300';
+      }
+    });
+    
+    // Clear history button
+    clearHistoryBtn.addEventListener('click', () => {
+      if (confirm('Clear entire calculation history?')) {
+        clearAllHistory();
+      }
+    });
+    
+    // Additional: update result on expression change real-time (already updateDisplay does evaluation)
+    // Also handle initial display
+    function init() {
+      loadHistoryFromStorage();
+      initTheme();
+      updateDisplay();
+    }
+    
+    init();
+  </script>
+</body>
+</html>
